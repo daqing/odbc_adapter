@@ -6,6 +6,7 @@ module ODBCAdapter
       @dbs = {
         /my.*sql/i  => :MySQL,
         /oscar/i => :OSCAR,
+	/gbase/i => :GBASE,
         /postgres/i => :PostgreSQL
       }
     end

@@ -1,17 +1,9 @@
-ActiveRecord::AttributeSet.class_eval do
-  def [](name)
-    name = 'id' if name == 'ID'
-
-    attributes[name] || Attribute.null(name)
-  end
-end
-
 module ODBCAdapter
   module Adapters
     # Overrides specific to MySQL. Mostly taken from
     # ActiveRecord::ConnectionAdapters::AbstractMysqlAdapter
-    class OSCARODBCAdapter < ActiveRecord::ConnectionAdapters::ODBCAdapter
-      PRIMARY_KEY = 'INT NOT NULL AUTO_INCREMENT PRIMARY KEY'.freeze
+    class GBASEODBCAdapter < ActiveRecord::ConnectionAdapters::ODBCAdapter
+      PRIMARY_KEY = 'INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY'.freeze
 
 #      class BindSubstitution < Arel::Visitors::MySQL
 #        include Arel::Visitors::BindVisitor
@@ -20,14 +12,6 @@ module ODBCAdapter
 #      def arel_visitor
 #        BindSubstitution.new(self)
 #      end
-#
-      # def visit_AddColumnDefinition(o)
-      #   "ADD COLUMN #{accept(o.column)}"
-      # end
-
-      def add_column(table_name, column_name, type, options={})
-        execute("ALTER TABLE #{table_name} ADD COLUMN #{column_name} #{type_to_sql(type)}")
-      end
 
       # Explicitly turning off prepared statements in the MySQL adapter because
       # of a weird bug with SQLDescribeParam returning a string type for LIMIT
@@ -101,16 +85,12 @@ module ODBCAdapter
       end
 
       def create_table(name, options = {})
-        # super(name, { options: 'ENGINE=InnoDB' }.merge(options))
         super(name, options)
       end
 
-      # def add_column_options!
-      # end
-
       # Renames a table.
       def rename_table(name, new_name)
-        execute("ALTER TABLE #{quote_table_name(name)} RENAME TO #{quote_table_name(new_name)}")
+        execute("RENAME TABLE #{quote_table_name(name)} TO #{quote_table_name(new_name)}")
       end
 
       def change_column(table_name, column_name, type, options = {})
@@ -118,9 +98,8 @@ module ODBCAdapter
           options[:default] = column_for(table_name, column_name).default
         end
 
-        # change_column_sql = "ALTER TABLE #{table_name} MODIFY #{column_name} #{type_to_sql(type, options[:limit], options[:precision], options[:scale])}"
-        change_column_sql = "ALTER TABLE #{table_name} MODIFY #{column_name} #{type_to_sql(type, options[:precision], options[:scale])}"
-        # add_column_options!(change_column_sql, options)
+        change_column_sql = "ALTER TABLE #{table_name} CHANGE #{column_name} #{column_name} #{type_to_sql(type, options[:limit], options[:precision], options[:scale])}"
+        add_column_options!(change_column_sql, options)
         execute(change_column_sql)
       end
 
@@ -139,20 +118,11 @@ module ODBCAdapter
         change_column(table_name, column_name, column.sql_type, null: null)
       end
 
-      def remove_index(table_name, column_name, options={})
-        index_name = options[:name] ? options[:name] : "index_#{table_name}_on_#{column_name}"
-        execute("DROP INDEX #{index_name}")
-      end
-
-      def format_case(identifier)
-        identifier.downcase
-      end
-
       def rename_column(table_name, column_name, new_column_name)
         column = column_for(table_name, column_name)
         current_type = column.native_type
-        # current_type << "(#{column.limit})" if column.limit
-        execute("ALTER TABLE #{table_name} RENAME COLUMN #{column_name} TO #{new_column_name}")
+        current_type << "(#{column.limit})" if column.limit
+        execute("ALTER TABLE #{table_name} CHANGE #{column_name} #{new_column_name} #{current_type}")
       end
 
       # Skip primary key indexes
@@ -174,8 +144,8 @@ module ODBCAdapter
       protected
 
       def insert_sql(sql, name = nil, pk = nil, id_value = nil, sequence_name = nil)
-	super
-	id_value || last_inserted_id(nil)
+        super
+        id_value || last_inserted_id(nil)
       end
 
       def last_inserted_id(_result)

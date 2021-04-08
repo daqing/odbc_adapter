@@ -8,6 +8,10 @@ module ODBCAdapter
     # Executes the SQL statement in the context of this connection.
     # Returns the number of rows affected.
     def execute(sql, name = nil, binds = [])
+      if sql.include?("\x00")
+	sql = sql.gsub("\x00", "")
+      end
+
       log(sql, name) do
         if prepared_statements
           @connection.do(sql, *prepared_binds(binds))

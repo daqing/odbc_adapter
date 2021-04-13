@@ -45,6 +45,19 @@ module ODBCAdapter
         0
       end
 
+      def _quote(value)
+        case value
+        when Date, Time then quoted_date(value)
+        else
+          super(value)
+        end
+      end
+
+      def quoted_date(value)
+        str = value.strftime("%Y-%m-%d %H:%M:%S")
+        %(from_tz('#{str}', '+08:00'))
+      end
+
       def disable_referential_integrity(&_block)
         old = select_value('SELECT @@FOREIGN_KEY_CHECKS')
 

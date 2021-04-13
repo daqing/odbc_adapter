@@ -1,3 +1,16 @@
+class ActiveRecord::Attribute
+  alias_method :origin_value, :value
+
+  def value
+    v = origin_value
+    if v.is_a?(String) && !v.frozen?
+      v = v.force_encoding('utf-8')
+    end
+    v
+  end
+  
+end
+
 module Oscar
   class TableDefinition < ActiveRecord::ConnectionAdapters::TableDefinition
     def new_column_definition(name, type, options)

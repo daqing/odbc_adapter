@@ -8,33 +8,13 @@ end
 
 module ODBCAdapter
   module Adapters
-    # Overrides specific to MySQL. Mostly taken from
-    # ActiveRecord::ConnectionAdapters::AbstractMysqlAdapter
     class OSCARODBCAdapter < ActiveRecord::ConnectionAdapters::ODBCAdapter
       PRIMARY_KEY = 'INT NOT NULL AUTO_INCREMENT PRIMARY KEY'.freeze
 
-#      class BindSubstitution < Arel::Visitors::MySQL
-#        include Arel::Visitors::BindVisitor
-#      end
-#
-#      def arel_visitor
-#        BindSubstitution.new(self)
-#      end
-#
-      # def visit_AddColumnDefinition(o)
-      #   "ADD COLUMN #{accept(o.column)}"
-      # end
-
       def add_column(table_name, column_name, type, options={})
-        execute("ALTER TABLE #{table_name} ADD COLUMN #{column_name} #{type_to_sql(type)}")
+        execute("ALTER TABLE #{table_name} ADD COLUMN #{column_name.downcase} #{type_to_sql(type)}")
       end
 
-      # Explicitly turning off prepared statements in the MySQL adapter because
-      # of a weird bug with SQLDescribeParam returning a string type for LIMIT
-      # parameters. This is blocking them from running with an error:
-      #
-      #     You have an error in your SQL syntax; ...
-      #     ... right syntax to use near ''1'' at line 1: ...
       def prepared_statements
         false
       end
@@ -76,14 +56,6 @@ module ODBCAdapter
         end
       end
 
-      # Create a new MySQL database with optional <tt>:charset</tt> and
-      # <tt>:collation</tt>. Charset defaults to utf8.
-      #
-      # Example:
-      #   create_database 'charset_test', charset: 'latin1',
-      #                                   collation: 'latin1_bin'
-      #   create_database 'rails_development'
-      #   create_database 'rails_development', charset: :big5
       def create_database(name, options = {})
         if options[:collation]
           execute("CREATE DATABASE `#{name}` DEFAULT CHARACTER SET `#{options[:charset] || 'utf8'}` COLLATE `#{options[:collation]}`")
@@ -92,21 +64,21 @@ module ODBCAdapter
         end
       end
 
-      # Drops a MySQL database.
-      #
-      # Example:
-      #   drop_database('rails_development')
       def drop_database(name)
         execute("DROP DATABASE IF EXISTS `#{name}`")
       end
 
       def create_table(name, options = {})
-        # super(name, { options: 'ENGINE=InnoDB' }.merge(options))
         super(name, options)
       end
 
-      # def add_column_options!
-      # end
+      def create_table_definition(*args) # :nodoc:
+        ::Oscar::TableDefinition.new(*args)
+      end
+
+      def schema_creation
+        ::Oscar::SchemaCreation.new(self)
+      end
 
       # Renames a table.
       def rename_table(name, new_name)
@@ -114,12 +86,16 @@ module ODBCAdapter
       end
 
       def change_column(table_name, column_name, type, options = {})
+        if type == :text
+          options[:limit] = nil
+        end
+
         unless options_include_default?(options)
           options[:default] = column_for(table_name, column_name).default
         end
 
         # change_column_sql = "ALTER TABLE #{table_name} MODIFY #{column_name} #{type_to_sql(type, options[:limit], options[:precision], options[:scale])}"
-        change_column_sql = "ALTER TABLE #{table_name} MODIFY #{column_name} #{type_to_sql(type, options[:precision], options[:scale])}"
+        change_column_sql = "ALTER TABLE #{table_name} MODIFY #{column_name} #{type_to_sql(type, options[:limit], options[:precision], options[:scale])}"
         # add_column_options!(change_column_sql, options)
         execute(change_column_sql)
       end
@@ -127,7 +103,9 @@ module ODBCAdapter
       def change_column_default(table_name, column_name, default_or_changes)
         default = extract_new_default_value(default_or_changes)
         column = column_for(table_name, column_name)
-        change_column(table_name, column_name, column.sql_type, default: default)
+
+	# FIXME: 单独实现此方法，不用调用 change_column
+        # change_column(table_name, column_name, column.sql_type, default: default)
       end
 
       def change_column_null(table_name, column_name, null, default = nil)
@@ -136,7 +114,18 @@ module ODBCAdapter
         unless null || default.nil?
           execute("UPDATE #{quote_table_name(table_name)} SET #{quote_column_name(column_name)}=#{quote(default)} WHERE #{quote_column_name(column_name)} IS NULL")
         end
-        change_column(table_name, column_name, column.sql_type, null: null)
+	
+	# FIXME: 增加对应的修改语句
+      end
+
+      def add_index(table_name, column_name, options={})
+        if column_name.is_a?(Array)
+          cols = column_name.map(&:downcase)
+        else
+          cols = column_name.downcase
+	end
+
+        super(table_name, cols, options)
       end
 
       def remove_index(table_name, column_name, options={})
@@ -160,8 +149,6 @@ module ODBCAdapter
         super(table_name, name).reject { |i| i.unique && i.name =~ /^PRIMARY$/ }
       end
 
-      # MySQL 5.x doesn't allow DEFAULT NULL for first timestamp column in a
-      # table
       def options_include_default?(options)
         if options.include?(:default) && options[:default].nil?
           if options.include?(:column) && options[:column].native_type =~ /timestamp/i

@@ -25,9 +25,8 @@ module ODBCAdapter
 
       # Quotes a string, escaping any ' (single quote) and \ (backslash)
       # characters.
-      def quote_string(string)
-        string.gsub(/\\/, '\&\&').gsub(/'/, "''")
-      end
+      # def quote_string(string)
+      # end
 
       def quoted_true
         '1'
@@ -49,6 +48,10 @@ module ODBCAdapter
         case value
         when Date, Time then quoted_date(value)
         else
+          if value.is_a?(String) && value.start_with?('from_tz')
+            return value
+          end
+
           super(value)
         end
       end
@@ -171,15 +174,12 @@ module ODBCAdapter
         super(options)
       end
 
-      protected
-
-      def insert_sql(sql, name = nil, pk = nil, id_value = nil, sequence_name = nil)
-	super
-	id_value || last_inserted_id(nil)
+      def last_inserted_id(_value)
+        select_value('SELECT LAST_INSERT_ID()').to_i
       end
 
-      def last_inserted_id(_result)
-        select_value('SELECT LAST_INSERT_ID()').to_i
+      def release_savepoint(name = "")
+        execute("DROP SAVEPOINT #{name}")
       end
     end
   end

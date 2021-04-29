@@ -72,6 +72,10 @@ module ODBCAdapter
         end
       end
 
+      def supports_migrations?
+        true
+      end
+
       def create_database(name, options = {})
         if options[:collation]
           execute("CREATE DATABASE `#{name}` DEFAULT CHARACTER SET `#{options[:charset] || 'utf8'}` COLLATE `#{options[:collation]}`")

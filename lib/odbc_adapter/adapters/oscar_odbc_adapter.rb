@@ -23,6 +23,12 @@ module ODBCAdapter
         execute("TRUNCATE TABLE #{quote_table_name(table_name)}", name)
       end
 
+      def initialize_type_map(map)
+        super(map)
+
+        map.register_type ODBC::SQL_TINYINT, ::ActiveRecord::Type::Boolean.new
+      end
+
       # Quotes a string, escaping any ' (single quote) and \ (backslash)
       # characters.
       # def quote_string(string)

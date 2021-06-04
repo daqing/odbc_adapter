@@ -4,7 +4,8 @@ class ActiveRecord::Attribute
   def value
     v = origin_value
     if v.is_a?(String) && !v.frozen?
-      v = v.force_encoding('utf-8')
+      v.force_encoding('utf-8')
+      v = v.scrub('') unless v.valid_encoding?
     end
     v
   end

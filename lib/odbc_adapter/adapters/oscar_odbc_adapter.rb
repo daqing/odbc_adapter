@@ -140,8 +140,7 @@ module ODBCAdapter
         unless null || default.nil?
           execute("UPDATE #{quote_table_name(table_name)} SET #{quote_column_name(column_name)}=#{quote(default)} WHERE #{quote_column_name(column_name)} IS NULL")
         end
-	
-	# FIXME: 增加对应的修改语句
+        # FIXME: 增加对应的修改语句
       end
 
       def add_index(table_name, column_name, options={})
@@ -149,7 +148,7 @@ module ODBCAdapter
           cols = column_name.map(&:downcase)
         else
           cols = column_name.downcase
-	end
+        end
 
         super(table_name, cols, options)
       end

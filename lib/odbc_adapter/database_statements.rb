@@ -9,7 +9,7 @@ module ODBCAdapter
     # Returns the number of rows affected.
     def execute(sql, name = nil, binds = [])
       if sql.include?("\x00")
-	sql = sql.gsub("\x00", "")
+        sql = sql.gsub("\x00", "")
       end
 
       log(sql, name) do

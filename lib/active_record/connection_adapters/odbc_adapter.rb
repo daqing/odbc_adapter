@@ -1,6 +1,6 @@
 require 'active_record'
 require 'arel/visitors/bind_visitor'
-require 'odbc'
+# require 'odbc'
 require 'odbc_utf8'
 
 require 'odbc_adapter/database_limits'
@@ -141,7 +141,7 @@ module ActiveRecord
         if default && default.include?("'")
           default = default.gsub("'", "")
         end
-        
+
         ::ODBCAdapter::Column.new(name, default, sql_type_metadata, null, table_name, default_function, collation, native_type)
       end
 

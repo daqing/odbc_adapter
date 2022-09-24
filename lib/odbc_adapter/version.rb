@@ -1,3 +1,3 @@
 module ODBCAdapter
-  VERSION = '5.0.17'.freeze
+  VERSION = '5.0.18'.freeze
 end
